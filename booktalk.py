@@ -8,8 +8,6 @@ from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
-import openai
-
 # Step 1: Load book text (supports TXT and PDF)
 def load_book(file_path):
     ext = os.path.splitext(file_path)[1].lower()
