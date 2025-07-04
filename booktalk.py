@@ -55,7 +55,7 @@ def build_faiss_index(chunks, model):
     return index, embeddings
 
 # Step 4: Answer questions using semantic similarity
-def answer_question_faiss(question, chunks, model, index, top_k=3):
+def answer_question_faiss(question, chunks, model, index, top_k=10):
     query_vec = model.encode([question])
     D, I = index.search(np.array(query_vec), top_k)
     return [chunks[i] for i in I[0]]
@@ -71,7 +71,8 @@ def gpt_answer(question, context_chunks):
 
     prompt = f"""You are a helpful assistant. ONLY use the information provided in the context below to answer the user's question. 
 Do not add any outside knowledge or make assumptions. If the answer is not in the context, respond with "I don't know based on the provided information."
-
+When answering questions, generate thorough, multi-paragraph responses that cite and summarize all relevant context chunks. Do not be brief.
+Start with a short summary answering the question, then provide additional details and context from the provided information.
 Context:
 {chr(10).join(context_chunks)}
 
