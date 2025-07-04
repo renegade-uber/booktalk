@@ -89,28 +89,55 @@ Answer:"""
 
 # Step 6: Command-line interface
 def main():
-    book_path = input("Enter path to the .txt or .pdf file of your book: ").strip()
-    if not os.path.exists(book_path):
-        print("File not found.")
+    books_folder = os.path.expanduser("~/Documents/books")
+    book_files = [f for f in os.listdir(books_folder) if f.endswith(('.pdf', '.txt'))][:9]
+    
+    if not book_files:
+        print("No PDF or TXT files found in your books folder.")
         return
-
-    try:
-        book_text = load_book(book_path)
-    except Exception as e:
-        print(f"Error loading book: {e}")
-        return
-
-    print("Splitting text and building vector index...")
-    chunks = chunk_text(book_text)
+    
+    print("Available books:")
+    for i, book in enumerate(book_files, 1):
+        print(f"{i}. {book}")
+    
+    selection = input("Enter book numbers to index (1,2,3) or leave empty for all: ").strip()
+    
+    if selection:
+        try:
+            selected_indices = [int(idx.strip()) - 1 for idx in selection.split(',')]
+            selected_books = [book_files[idx] for idx in selected_indices if 0 <= idx < len(book_files)]
+        except (ValueError, IndexError):
+            print("Invalid selection. Using all available books.")
+            selected_books = book_files
+    else:
+        selected_books = book_files
+    
+    all_chunks = []
     model = SentenceTransformer('all-MiniLM-L6-v2')
-    index, _ = build_faiss_index(chunks, model)
-
-    print("Book loaded and indexed successfully. Ask your question below (type 'exit' to quit).\n")
+    
+    for book_file in selected_books:
+        book_path = os.path.join(books_folder, book_file)
+        print(f"Loading {book_file}...")
+        try:
+            book_text = load_book(book_path)
+            chunks = chunk_text(book_text)
+            all_chunks.extend(chunks)
+            print(f"Added {len(chunks)} chunks from {book_file}")
+        except Exception as e:
+            print(f"Error loading {book_file}: {e}")
+    
+    if not all_chunks:
+        print("No books were successfully loaded.")
+        return
+    
+    print("Building vector index...")
+    index, _ = build_faiss_index(all_chunks, model)
+    print("Books indexed successfully. Ask your question below (type 'exit' to quit).\n")
 
     while True:
         question = input("Your question: ").strip()
         if question.lower() in ('exit', 'quit'): break
-        answers = answer_question_faiss(question, chunks, model, index)
+        answers = answer_question_faiss(question, all_chunks, model, index)
         print("\n--- Source Chunks ---")
         for a in answers:
             print(f"\n{a}\n")
