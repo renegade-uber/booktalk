@@ -9,13 +9,6 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
-"""
-This file follows the Presentation-Domain-Data architecture:
-- Presentation: To run the application via terminal or the chainlit app
-- Domain: The internal services
-- Data: The external data dependencies
-"""
-
 # Step 1: Load book text (supports TXT and PDF)
 def load_book(file_path):
     ext = os.path.splitext(file_path)[1].lower()
