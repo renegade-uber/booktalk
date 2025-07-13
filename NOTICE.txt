@@ -1,0 +1,3 @@
+Copyright © 2025 Karan Handa
+
+All rights reserved. This software is proprietary and confidential. No part of this codebase may be copied, modified, or distributed without explicit permission.

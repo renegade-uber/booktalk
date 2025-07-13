@@ -8,6 +8,14 @@ from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
+
+"""
+This file follows the Presentation-Domain-Data architecture:
+- Presentation: To run the application via terminal or the chainlit app
+- Domain: The internal services
+- Data: The external data dependencies
+"""
+
 # Step 1: Load book text (supports TXT and PDF)
 def load_book(file_path):
     ext = os.path.splitext(file_path)[1].lower()
@@ -88,7 +96,11 @@ Answer:"""
     )
     return response.choices[0].message.content.strip()
 
-# Step 6: Command-line interface
+#
+# Application layer
+# 
+
+# Terminal application
 def main():
     books_folder = os.path.expanduser("~/Documents/books")
     book_files = [f for f in os.listdir(books_folder) if f.endswith(('.pdf', '.txt'))][:9]
@@ -151,3 +163,81 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# Chainlit entry point
+import chainlit as cl
+
+@cl.on_chat_start
+async def on_chat_start():
+    books_folder = os.path.expanduser("~/Documents/books")
+    book_files = [f for f in os.listdir(books_folder) if f.endswith(('.pdf', '.txt'))][:9]
+    
+    if not book_files:
+        await cl.Message(content="No PDF or TXT files found in your books folder.").send()
+        return
+    
+    # Show book list
+    book_list = "\n".join([f"- {book}" for book in book_files])
+    await cl.Message(content=f"Welcome to BookTalk! Indexing all available books:\n\n{book_list}").send()
+    
+    # Show loading message
+    loading_msg = cl.Message(content=f"Indexing {len(book_files)} books...")
+    await loading_msg.send()
+    
+    # Index books
+    all_chunks = []
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    for book_file in book_files:
+        book_path = os.path.join(books_folder, book_file)
+        try:
+            book_text = load_book(book_path)
+            chunks = chunk_text(book_text)
+            all_chunks.extend(chunks)
+            await loading_msg.stream_token(f"\nAdded {len(chunks)} chunks from {book_file}")
+        except Exception as e:
+            await loading_msg.stream_token(f"\nError loading {book_file}: {str(e)}")
+    
+    if not all_chunks:
+        await cl.Message(content="No books were successfully loaded.").send()
+        return
+    
+    # Build index
+    await loading_msg.stream_token("\nBuilding vector index...")
+    index, _ = build_faiss_index(all_chunks, model)
+    
+    await loading_msg.stream_token("\nBooks indexed successfully. Ask your questions!")
+    cl.user_session.set("all_chunks", all_chunks)
+    cl.user_session.set("index", index)
+    cl.user_session.set("model", model)
+
+@cl.on_message
+async def on_message(message: cl.Message):
+    # Get session variables
+    all_chunks = cl.user_session.get("all_chunks")
+    index = cl.user_session.get("index")
+    model = cl.user_session.get("model")
+    
+    if not all_chunks or index is None:
+        await cl.Message(content="Please wait for book indexing to complete.").send()
+        return
+    
+    question = message.content
+    
+    # Get relevant chunks
+    answers = answer_question_faiss(question, all_chunks, model, index)
+    
+    # Show source chunks in expandable element
+    sources_content = "\n\n".join([f"Source {i+1}:\n{chunk}" for i, chunk in enumerate(answers)])
+    sources = cl.Text(name="Sources", content=sources_content, display="inline")
+    
+    # Generate GPT answer
+    try:
+        # Create a new message instead of updating
+        await cl.Message(content="Generating answer...").send()
+        
+        final_answer = gpt_answer(question, answers)
+        # Send a new message with the answer
+        await cl.Message(content=final_answer, elements=[sources]).send()
+    except Exception as e:
+        await cl.Message(content=f"Error calling OpenAI API: {str(e)}").send()
