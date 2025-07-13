@@ -54,7 +54,7 @@ class OpenAIService(LLMServiceProtocol):
             raise ValueError("OPENAI_API_KEY environment variable not set.")
         self.client = OpenAI(api_key=api_key)
     
-    def generate_answer(self, question: str, context: list[str]) -> str:
+    def generate_answer(self, question: str, context: List[str]) -> str:
         prompt = f"""You are a helpful assistant. ONLY use the information provided in the context below to answer the user's question. 
 Do not add any outside knowledge or make assumptions. If the answer is not in the context, respond with "I don't know based on the provided information."
 When answering questions, generate thorough, multi-paragraph responses that cite and summarize all relevant context chunks. Do not be brief.
