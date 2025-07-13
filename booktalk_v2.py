@@ -10,7 +10,6 @@ from protocols import (
     VectorStoreProtocol, 
     AnsweringServiceProtocol,
 )
-import os
 from openai import OpenAI
 from typing import Dict, Any
 
