@@ -11,7 +11,7 @@ from protocols import (
     AnsweringServiceProtocol,
 )
 from openai import OpenAI
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 """
 This file follows the Presentation-Domain-Data architecture:
